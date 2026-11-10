@@ -1,0 +1,84 @@
+name: devsecops
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write          # required for AWS OIDC federation
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: student-service
+  IMAGE_NAME: student-service
+
+concurrency:
+  group: devsecops-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history gives SonarCloud accurate blame / new-code detection
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 1. Build & unit test (JaCoCo report is generated in the test phase)
+      - name: Build and unit test
+        run: mvn -B verify
+
+      # 2. SAST - SonarCloud; the job fails if the Quality Gate fails
+      - name: SonarCloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -Dsonar.qualitygate.wait=true
+          -Dsonar.qualitygate.timeout=300
+
+      # 3. Container image build, tagged with the commit SHA
+      - name: Build Docker image
+        run: docker build -t "$IMAGE_NAME:${{ github.sha }}" .
+
+      # 4. Vulnerability scan - fail on CRITICAL/HIGH
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      # 5. Secure AWS authentication (OIDC, no long-lived keys) and push to ECR
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image
+        run: |
+          REMOTE="${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${{ github.sha }}"
+          docker tag "$IMAGE_NAME:${{ github.sha }}" "$REMOTE"
+          docker push "$REMOTE"
+          echo "Pushed $REMOTE" >> "$GITHUB_STEP_SUMMARY"

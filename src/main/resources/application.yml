@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: student-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:students}?sslmode=${DB_SSLMODE:verify-full}&sslrootcert=${DB_SSLROOTCERT:/app/certs/global-bundle.pem}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-components: always   # exposes components.db.status (no connection details)
+      probes:
+        enabled: true
