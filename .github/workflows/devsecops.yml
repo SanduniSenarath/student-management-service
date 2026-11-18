@@ -54,7 +54,7 @@ jobs:
       - name: Build Docker image
         run: docker build -t "$IMAGE_NAME:${{ github.sha }}" .
 
-      # 4. Vulnerability scan - fail on CRITICAL/HIGH (Fixed version tag with 'v')
+      # 4. Vulnerability scan - fail on CRITICAL/HIGH
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@v0.28.0
         with:
