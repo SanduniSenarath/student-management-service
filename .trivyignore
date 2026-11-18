@@ -1,0 +1,5 @@
+# Spring Framework 6.2.x: fix is Enterprise-only; OSS fix is in 7.0.9 (Spring Boot 4.x).
+# Not applicable: REST-only service, no XsltView, no SSE view fragments.
+# Revisit when upgrading to Spring Boot 4.x.
+CVE-2026-47884
+CVE-2026-47890
