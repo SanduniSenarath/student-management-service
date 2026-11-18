@@ -45,8 +45,8 @@ jobs:
         run: >
           mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
-          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -Dsonar.organization=sandunisenarath
+          -Dsonar.projectKey=SanduniSenarath_student-management-service
           -Dsonar.qualitygate.wait=true
           -Dsonar.qualitygate.timeout=300
 
